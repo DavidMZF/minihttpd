@@ -48,7 +48,7 @@ static void send_error(int fd, int status, const char *status_text) {
     char body[128];
 
     snprintf(body, sizeof(body),
-        "<html><body><h1>%d %s</h1></body></html>",
+        "<html><body><h1>%d %s</h1></body></html>\n",
         status, status_text);
 
     send_response(fd, status, status_text, "text/html", body, 0);
@@ -144,19 +144,20 @@ void handle_request(int client_fd, char *buffer) {
     snprintf(full_path, sizeof(full_path), "%s%s", WWW_ROOT, uri);
 
     char real_path[PATH_MAX];
-    if (!resolve_path(uri, real_path, WWW_ROOT)) {
+    int result = resolve_path(uri, real_path, WWW_ROOT);
+
+    if (result == -1) {
+        send_error(client_fd, 403, "Forbidden");
+        return;
+    }
+    if (result == 0) {
         send_error(client_fd, 404, "Not Found");
         return;
-}
+    }
 
     char real_root[PATH_MAX];
     if (realpath(WWW_ROOT, real_root) == NULL) {
         send_error(client_fd, 500, "Internal Server Error");
-        return;
-    }
-
-    if (strncmp(real_path, real_root, strlen(real_root)) != 0) {
-        send_error(client_fd, 403, "Forbidden");
         return;
     }
 
